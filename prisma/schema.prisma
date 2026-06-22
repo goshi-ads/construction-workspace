@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Urgency {
+  normal
+  soon
+  urgent
+  overdue
+}
+
+enum MarkKind {
+  deadline
+  meeting
+  delivery
+  site
+}
+
+model Case {
+  id                   String  @id
+  name                 String
+  mainAssignee         String
+  subAssignee          String
+  plannedStepId        String
+  plannedProgressPct   Int?
+  defaultCurrentStepId String
+
+  checks   CaseCheck[]
+  progress CaseProgress?
+  marks    DeadlineMark[]
+
+  @@map("cases")
+}
+
+model CaseCheck {
+  id      String  @id @default(uuid())
+  caseId  String
+  itemId  String
+  checked Boolean @default(false)
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, itemId])
+  @@map("case_checks")
+}
+
+model CaseProgress {
+  id            String @id @default(uuid())
+  caseId        String @unique
+  currentStepId String
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("case_progress")
+}
+
+model DeadlineMark {
+  id           String   @id
+  caseId       String
+  at           String
+  dateOnly     Boolean  @default(false)
+  title        String
+  assignee     String
+  nextAction   String
+  urgency      Urgency  @default(normal)
+  kind         MarkKind @default(deadline)
+  linkedStepId String?
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@map("deadline_marks")
+}
+
+model ProcedureStep {
+  id    String @id
+  title String
+  icon  String
+  order Int
+
+  items ProcedureItem[]
+
+  @@map("procedure_steps")
+}
+
+model ProcedureItem {
+  id       String  @id
+  stepId   String
+  parentId String?
+  label    String
+  order    Int
+
+  step     ProcedureStep   @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  parent   ProcedureItem?  @relation("ItemChildren", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children ProcedureItem[] @relation("ItemChildren")
+
+  @@map("procedure_items")
+}
+
+model AnnualCard {
+  id     String  @id
+  period String?
+  label  String?
+  order  Int
+
+  projects AnnualProject[]
+
+  @@map("annual_cards")
+}
+
+model AnnualProject {
+  id        String  @id @default(uuid())
+  cardId    String
+  label     String
+  completed Boolean @default(false)
+  caseLabel String?
+  order     Int
+
+  card AnnualCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@map("annual_projects")
+}
